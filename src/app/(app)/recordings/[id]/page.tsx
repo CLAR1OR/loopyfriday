@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Comments } from "@/components/comments/comments";
 import { ProcessingPoller } from "@/components/recordings/processing-poller";
 import { RecordingPlayer } from "@/components/recordings/recording-player";
 import { requireUser } from "@/server/auth/session";
@@ -39,6 +40,8 @@ export default async function RecordingPage({
         <RecordingPlayer
           recordingId={rec.id}
           durationSeconds={rec.durationSeconds ?? 0}
+          currentUserId={user.id}
+          isAdmin={user.role === "admin"}
           initialSections={sections.map((s) => ({
             id: s.id,
             name: s.name,
@@ -63,6 +66,16 @@ export default async function RecordingPage({
           automatically.
         </div>
       )}
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">Comments</h2>
+        <Comments
+          entityType="recording"
+          entityId={rec.id}
+          currentUserId={user.id}
+          isAdmin={user.role === "admin"}
+        />
+      </div>
     </div>
   );
 }

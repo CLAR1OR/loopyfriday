@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Comments } from "@/components/comments/comments";
+import { Scores } from "@/components/scores/scores";
 import { SongWorkspace } from "@/components/songs/song-workspace";
 import { requireUser } from "@/server/auth/session";
 import { getSongDetail, getSongForUser } from "@/server/songs";
@@ -54,6 +62,30 @@ export default async function SongPage({
           when: formatWhen(v.createdAt),
         }))}
       />
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Scores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Scores entityType="song" entityId={detail.song.id} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Comments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Comments
+              entityType="song"
+              entityId={detail.song.id}
+              currentUserId={user.id}
+              isAdmin={user.role === "admin"}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

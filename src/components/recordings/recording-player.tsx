@@ -7,6 +7,8 @@ import type WaveSurfer from "wavesurfer.js";
 import type { Region } from "wavesurfer.js/dist/plugins/regions.esm.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Comments } from "@/components/comments/comments";
+import { Scores } from "@/components/scores/scores";
 import {
   createSectionAction,
   deleteSectionAction,
@@ -30,10 +32,14 @@ const byStart = (a: SectionDTO, b: SectionDTO) => a.startSeconds - b.startSecond
 export function RecordingPlayer({
   recordingId,
   durationSeconds,
+  currentUserId,
+  isAdmin,
   initialSections,
 }: {
   recordingId: string;
   durationSeconds: number;
+  currentUserId: string;
+  isAdmin: boolean;
   initialSections: SectionDTO[];
 }) {
   const [sections, setSections] = useState<SectionDTO[]>(
@@ -44,7 +50,15 @@ export function RecordingPlayer({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [panel, setPanel] = useState<{
+    id: string;
+    tab: "comments" | "scores";
+  } | null>(null);
   const router = useRouter();
+
+  function togglePanel(id: string, tab: "comments" | "scores") {
+    setPanel((cur) => (cur && cur.id === id && cur.tab === tab ? null : { id, tab }));
+  }
 
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
@@ -298,6 +312,38 @@ export function RecordingPlayer({
                   placeholder="Lyrics for this section (optional)"
                   className="mt-2 min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
+
+                <div className="mt-2 flex gap-3 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(s.id, "comments")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Comments
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(s.id, "scores")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Scores
+                  </button>
+                </div>
+                {panel?.id === s.id && panel.tab === "comments" ? (
+                  <div className="mt-2 rounded-md border p-2">
+                    <Comments
+                      entityType="section"
+                      entityId={s.id}
+                      currentUserId={currentUserId}
+                      isAdmin={isAdmin}
+                    />
+                  </div>
+                ) : null}
+                {panel?.id === s.id && panel.tab === "scores" ? (
+                  <div className="mt-2 rounded-md border p-2">
+                    <Scores entityType="section" entityId={s.id} />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
