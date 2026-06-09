@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser } from "@/server/auth/session";
 
-export default function Home() {
+export default async function Home() {
+  if (await getCurrentUser()) redirect("/sessions");
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="space-y-2">

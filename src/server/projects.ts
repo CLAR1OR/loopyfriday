@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { projects } from "@/server/db/schema";
+import { projects, projectMembers } from "@/server/db/schema";
 
 export const DEFAULT_PROJECT_SLUG = "default";
 
@@ -29,4 +29,16 @@ export async function getOrCreateDefaultProject(createdBy?: string) {
   });
   if (!fallback) throw new Error("Failed to create default project");
   return fallback;
+}
+
+/** Add a user to a project. Idempotent (no-op if already a member). */
+export async function addProjectMember(
+  projectId: string,
+  userId: string,
+  role: "admin" | "member" = "member",
+) {
+  await db
+    .insert(projectMembers)
+    .values({ projectId, userId, role })
+    .onConflictDoNothing();
 }
