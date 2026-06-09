@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type WaveSurfer from "wavesurfer.js";
 import type { Region } from "wavesurfer.js/dist/plugins/regions.esm.js";
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ import {
   updateSectionAction,
   type SectionDTO,
 } from "@/server/section-actions";
+import { promoteSectionToSongAction } from "@/server/song-actions";
 
 const REGION_COLOR = "rgba(99, 102, 241, 0.18)";
 const DRAG_COLOR = "rgba(99, 102, 241, 0.12)";
@@ -40,6 +43,8 @@ export function RecordingPlayer({
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const router = useRouter();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
@@ -200,6 +205,13 @@ export function RecordingPlayer({
     void deleteSectionAction({ sectionId: id }).catch(() => {});
   }
 
+  function promote(id: string) {
+    setPromotingId(id);
+    promoteSectionToSongAction({ sectionId: id })
+      .then(({ songId }) => router.push(`/songs/${songId}`))
+      .catch(() => setPromotingId(null));
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-md border p-4">
@@ -254,6 +266,20 @@ export function RecordingPlayer({
                     }}
                     className="h-8"
                   />
+                  {s.promotedSongId ? (
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/songs/${s.promotedSongId}`}>View song</Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => promote(s.id)}
+                      disabled={promotingId === s.id}
+                    >
+                      {promotingId === s.id ? "Promoting…" : "Promote"}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"

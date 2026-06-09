@@ -19,6 +19,9 @@ export function SiteHeader({
           <Link href="/sessions" className="hover:text-foreground">
             Sessions
           </Link>
+          <Link href="/songs" className="hover:text-foreground">
+            Songs
+          </Link>
           {isAdmin ? (
             <Link href="/admin" className="hover:text-foreground">
               Admin

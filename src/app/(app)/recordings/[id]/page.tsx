@@ -46,6 +46,7 @@ export default async function RecordingPage({
             endSeconds: s.endSeconds,
             lyrics: s.lyrics,
             color: s.color,
+            promotedSongId: s.promotedSongId,
           }))}
         />
       ) : rec.status === "failed" ? (

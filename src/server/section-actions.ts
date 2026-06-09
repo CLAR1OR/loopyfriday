@@ -17,6 +17,7 @@ export interface SectionDTO {
   endSeconds: number;
   lyrics: string | null;
   color: string | null;
+  promotedSongId: string | null;
 }
 
 async function requireUserId() {
@@ -68,6 +69,7 @@ export async function createSectionAction(input: {
     endSeconds: section.endSeconds,
     lyrics: section.lyrics,
     color: section.color,
+    promotedSongId: section.promotedSongId,
   };
 }
 
