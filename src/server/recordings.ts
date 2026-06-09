@@ -93,3 +93,11 @@ export async function setRecordingStatus(
     .set({ status })
     .where(eq(recordings.id, recordingId));
 }
+
+/** Reset a failed recording so the worker can have another go. */
+export async function resetRecordingForReprocess(recordingId: string) {
+  await db
+    .update(recordings)
+    .set({ status: "uploaded", error: null })
+    .where(eq(recordings.id, recordingId));
+}

@@ -1,14 +1,17 @@
 /**
- * File storage abstraction. Currently a local-disk implementation rooted at
- * DATA_DIR; an S3/MinIO driver can implement the same surface later.
+ * File storage abstraction. The local-disk driver (rooted at DATA_DIR) is the
+ * supported backend; an S3/MinIO driver implementing the same surface can be
+ * selected with STORAGE_DRIVER=s3 (currently a stub — see ./s3.ts).
  *
  * Keys are POSIX-style relative paths, e.g. `uploads/<id>`, `streams/<id>.m4a`,
  * `peaks/<id>.json`, `scores/<id>.pdf`.
  */
-import { createReadStream, type ReadStream } from "node:fs";
+import { createReadStream } from "node:fs";
 import { copyFile, mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import { env } from "@/server/env";
+import { S3Storage } from "./s3";
 
 export interface Storage {
   resolve(key: string): string;
@@ -16,10 +19,7 @@ export interface Storage {
   moveInto(key: string, srcAbsolutePath: string): Promise<void>;
   size(key: string): Promise<number>;
   exists(key: string): Promise<boolean>;
-  createReadStream(
-    key: string,
-    opts?: { start?: number; end?: number },
-  ): ReadStream;
+  createReadStream(key: string, opts?: { start?: number; end?: number }): Readable;
   remove(key: string): Promise<void>;
 }
 
@@ -78,8 +78,21 @@ class LocalStorage implements Storage {
   }
 }
 
-export const storage: Storage = new LocalStorage(env.DATA_DIR);
+function createStorage(): Storage {
+  if (env.STORAGE_DRIVER === "s3") {
+    return new S3Storage({
+      bucket: env.S3_BUCKET ?? "",
+      region: env.S3_REGION,
+      endpoint: env.S3_ENDPOINT,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    });
+  }
+  return new LocalStorage(env.DATA_DIR);
+}
 
-/** Convenience for the tus file-store upload directory. */
+export const storage: Storage = createStorage();
+
+/** Convenience for the tus file-store upload directory (local driver). */
 export const UPLOAD_SUBDIR = "uploads";
 export const uploadDirAbsolute = path.resolve(env.DATA_DIR, UPLOAD_SUBDIR);

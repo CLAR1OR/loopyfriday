@@ -47,6 +47,52 @@ To seed the initial admin once the stack is up:
 docker compose run --rm app seed
 ```
 
-The app is served on `http://localhost:3000` (override with `APP_PORT`). Behind a
-reverse proxy, raise the client body-size limit and disable upload buffering so
-large resumable uploads pass through (see PLAN.md → Key risks).
+The app is served on `http://localhost:3000` (override with `APP_PORT`).
+
+## Operations
+
+### Behind a reverse proxy (Nginx Proxy Manager)
+
+Uploads are resumable (tus) and can be large, so on the proxy host:
+
+- raise `client_max_body_size` (e.g. `2g`, matching `UPLOAD_MAX_BYTES`);
+- disable request buffering (`proxy_request_buffering off;`) so chunks stream
+  through;
+- allow long timeouts (`proxy_read_timeout` / `proxy_send_timeout`);
+- pass Range requests through untouched (default) so audio seeking works.
+
+Test a real large upload **through the proxy**, not just on localhost.
+
+### Limits & storage
+
+- `UPLOAD_MAX_BYTES` caps a single recording upload (default 2 GiB); score
+  uploads are capped at 25 MB.
+- `STORAGE_DRIVER=local` (default) stores files under the `files` volume. `s3`
+  is a stub (`src/server/storage/s3.ts`) — implement it to use S3/MinIO.
+
+### Failed jobs
+
+If transcoding/peaks fail, the recording shows **Processing failed** with the
+error and a **Retry** button (re-queues the idempotent worker job). pg-boss also
+retries transient failures automatically; a worker killed mid-job picks the job
+back up on restart.
+
+### Backup & restore
+
+Back up the database **and** the files volume together (the DB references
+storage keys):
+
+```bash
+./scripts/backup.sh            # -> backups/<timestamp>/{db.sql.gz, files.tar.gz}
+```
+
+Restore into a running (ideally freshly migrated) stack:
+
+```bash
+docker compose up -d                       # fresh stack; migrations run on boot
+./scripts/restore.sh backups/<timestamp>   # loads DB + files
+docker compose restart app worker
+```
+
+Originals are kept, so transcoded streams and waveform peaks can be regenerated
+(each recording carries a `peaks_version`).

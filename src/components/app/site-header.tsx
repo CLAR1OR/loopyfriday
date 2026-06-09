@@ -11,11 +11,11 @@ export function SiteHeader({
 
   return (
     <header className="border-b">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
         <Link href="/sessions" className="font-semibold">
           LoopyFriday
         </Link>
-        <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+        <nav className="flex items-center gap-3 text-sm text-muted-foreground sm:gap-4">
           <Link href="/sessions" className="hover:text-foreground">
             Sessions
           </Link>
@@ -28,8 +28,10 @@ export function SiteHeader({
             </Link>
           ) : null}
         </nav>
-        <div className="ml-auto flex items-center gap-3 text-sm">
-          <span className="text-muted-foreground">{user.name}</span>
+        <div className="ml-auto flex items-center gap-2 text-sm sm:gap-3">
+          <span className="hidden text-muted-foreground sm:inline">
+            {user.name}
+          </span>
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" size="sm">
               Sign out

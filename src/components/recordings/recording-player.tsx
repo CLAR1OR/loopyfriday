@@ -230,7 +230,7 @@ export function RecordingPlayer({
     <div className="space-y-6">
       <div className="rounded-md border p-4">
         <div ref={containerRef} className="w-full" />
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             size="sm"
             onClick={() => wsRef.current?.playPause()}
@@ -241,7 +241,7 @@ export function RecordingPlayer({
           <span className="text-sm tabular-nums text-muted-foreground">
             {fmt(currentTime)} / {fmt(durationSeconds)}
           </span>
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="ml-auto hidden text-xs text-muted-foreground sm:block">
             Drag across the waveform to tag a section.
           </span>
         </div>
@@ -264,7 +264,7 @@ export function RecordingPlayer({
                   selectedId === s.id ? "border-foreground" : ""
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => seekTo(s.id)}
@@ -278,7 +278,7 @@ export function RecordingPlayer({
                     onBlur={(e) => {
                       if (e.target.value !== s.name) rename(s.id, e.target.value);
                     }}
-                    className="h-8"
+                    className="h-8 min-w-32 flex-1"
                   />
                   {s.promotedSongId ? (
                     <Button size="sm" variant="ghost" asChild>

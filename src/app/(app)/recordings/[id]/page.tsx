@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Comments } from "@/components/comments/comments";
 import { ProcessingPoller } from "@/components/recordings/processing-poller";
 import { RecordingPlayer } from "@/components/recordings/recording-player";
+import { RetryButton } from "@/components/recordings/retry-button";
 import { requireUser } from "@/server/auth/session";
 import { getRecordingForUser } from "@/server/recordings";
 import { listSections } from "@/server/sections";
@@ -53,11 +54,14 @@ export default async function RecordingPage({
           }))}
         />
       ) : rec.status === "failed" ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p className="font-medium text-destructive">Processing failed</p>
-          {rec.error ? (
-            <p className="mt-1 text-muted-foreground">{rec.error}</p>
-          ) : null}
+        <div className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <div>
+            <p className="font-medium text-destructive">Processing failed</p>
+            {rec.error ? (
+              <p className="mt-1 text-muted-foreground">{rec.error}</p>
+            ) : null}
+          </div>
+          <RetryButton recordingId={rec.id} />
         </div>
       ) : (
         <div className="rounded-md border p-4 text-sm text-muted-foreground">

@@ -11,6 +11,15 @@ const schema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   DATA_DIR: z.string().min(1).default("./data/files"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // Max size for a single recording upload (bytes). Default 2 GiB.
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024 * 1024),
+  // Storage backend. "s3" is a stub for now (see storage/s3.ts).
+  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ENDPOINT: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 type Env = z.infer<typeof schema>;
