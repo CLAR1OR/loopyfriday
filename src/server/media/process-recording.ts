@@ -4,7 +4,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { recordings } from "@/server/db/schema";
 import { storage } from "@/server/storage";
-import { generatePeaks, probe, transcodeToStream } from "./ffmpeg";
+import {
+  generatePeaks,
+  probe,
+  transcodeToStream,
+  transcodeToVideo,
+} from "./ffmpeg";
 
 /**
  * Full processing pipeline for an uploaded recording: probe -> transcode to a
@@ -40,11 +45,24 @@ export async function processRecording(recordingId: string) {
     const peaksKey = `peaks/${rec.id}.json`;
     await storage.writeBuffer(peaksKey, Buffer.from(JSON.stringify(peaks)));
 
+    // If the upload is a video, also produce a web-playable copy to watch.
+    let videoKey: string | null = null;
+    if (meta.hasVideo) {
+      videoKey = `videos/${rec.id}.mp4`;
+      const videoOut = storage.resolve(videoKey);
+      await mkdir(path.dirname(videoOut), { recursive: true });
+      await transcodeToVideo(inputPath, videoOut, {
+        videoCodec: meta.videoCodec,
+        audioCodec: meta.audioCodec,
+      });
+    }
+
     await db
       .update(recordings)
       .set({
         status: "ready",
         streamKey,
+        videoKey,
         peaksPath: peaksKey,
         peaksVersion: (rec.peaksVersion ?? 0) + 1,
         durationSeconds: duration || null,

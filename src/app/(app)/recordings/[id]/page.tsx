@@ -41,6 +41,7 @@ export default async function RecordingPage({
         <RecordingPlayer
           recordingId={rec.id}
           durationSeconds={rec.durationSeconds ?? 0}
+          hasVideo={Boolean(rec.videoKey)}
           currentUserId={user.id}
           isAdmin={user.role === "admin"}
           initialSections={sections.map((s) => ({

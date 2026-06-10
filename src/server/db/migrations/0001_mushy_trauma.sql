@@ -1,0 +1,1 @@
+ALTER TABLE "recordings" ADD COLUMN "video_key" text;

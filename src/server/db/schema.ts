@@ -211,7 +211,8 @@ export const recordings = pgTable(
     originalFilename: text("original_filename"),
     // storage keys (relative paths within DATA_DIR)
     storageKey: text("storage_key"), // original upload
-    streamKey: text("stream_key"), // transcoded web-friendly copy
+    streamKey: text("stream_key"), // transcoded web-friendly audio copy
+    videoKey: text("video_key"), // web-playable video derivative (null = audio-only)
     peaksPath: text("peaks_path"), // precomputed waveform peaks json
     peaksVersion: integer("peaks_version").default(0),
     durationSeconds: real("duration_seconds"),

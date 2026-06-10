@@ -85,11 +85,11 @@ export function UploadRecording() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="rec-file">Audio file</Label>
+        <Label htmlFor="rec-file">Audio or video file</Label>
         <Input
           id="rec-file"
           type="file"
-          accept="audio/*"
+          accept="audio/*,video/*"
           disabled={busy}
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />

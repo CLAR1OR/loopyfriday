@@ -32,12 +32,14 @@ const byStart = (a: SectionDTO, b: SectionDTO) => a.startSeconds - b.startSecond
 export function RecordingPlayer({
   recordingId,
   durationSeconds,
+  hasVideo,
   currentUserId,
   isAdmin,
   initialSections,
 }: {
   recordingId: string;
   durationSeconds: number;
+  hasVideo: boolean;
   currentUserId: string;
   isAdmin: boolean;
   initialSections: SectionDTO[];
@@ -50,11 +52,13 @@ export function RecordingPlayer({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(hasVideo);
   const [panel, setPanel] = useState<{
     id: string;
     tab: "comments" | "scores";
   } | null>(null);
   const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   function togglePanel(id: string, tab: "comments" | "scores") {
     setPanel((cur) => (cur && cur.id === id && cur.tab === tab ? null : { id, tab }));
@@ -135,9 +139,15 @@ export function RecordingPlayer({
       }
       if (destroyed || !containerRef.current) return;
 
+      // For a video upload, drive the actual <video> element so its audio is
+      // the single playback source and the waveform/regions control it. Audio
+      // uploads just stream the transcoded audio.
       ws = WaveSurferCtor.create({
         container: containerRef.current,
-        url: `/api/stream/${recordingId}`,
+        media: hasVideo ? (videoRef.current ?? undefined) : undefined,
+        url: hasVideo
+          ? `/api/video/${recordingId}`
+          : `/api/stream/${recordingId}`,
         peaks,
         duration: durationSeconds || undefined,
         height: 96,
@@ -187,7 +197,7 @@ export function RecordingPlayer({
       knownSnap.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordingId, durationSeconds]);
+  }, [recordingId, durationSeconds, hasVideo]);
 
   // --- list actions ---
   function seekTo(id: string) {
@@ -229,6 +239,16 @@ export function RecordingPlayer({
   return (
     <div className="space-y-6">
       <div className="rounded-md border p-4">
+        {hasVideo ? (
+          <video
+            ref={videoRef}
+            playsInline
+            controls
+            className={`mb-3 max-h-[60vh] w-full rounded bg-black ${
+              showVideo ? "" : "hidden"
+            }`}
+          />
+        ) : null}
         <div ref={containerRef} className="w-full" />
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
@@ -241,6 +261,15 @@ export function RecordingPlayer({
           <span className="text-sm tabular-nums text-muted-foreground">
             {fmt(currentTime)} / {fmt(durationSeconds)}
           </span>
+          {hasVideo ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowVideo((v) => !v)}
+            >
+              {showVideo ? "Hide video" : "Show video"}
+            </Button>
+          ) : null}
           <span className="ml-auto hidden text-xs text-muted-foreground sm:block">
             Drag across the waveform to tag a section.
           </span>

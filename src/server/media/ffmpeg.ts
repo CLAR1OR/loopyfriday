@@ -46,10 +46,22 @@ export async function assertMediaTools(): Promise<void> {
   }
 }
 
+interface ProbeStream {
+  codec_type?: string;
+  codec_name?: string;
+  sample_rate?: string | number;
+  channels?: number;
+  disposition?: { attached_pic?: number };
+}
+
 export interface ProbeResult {
   durationSeconds: number | null;
   sampleRate: number | null;
   channels: number | null;
+  // A real video stream (not embedded cover art) is present.
+  hasVideo: boolean;
+  videoCodec: string | null;
+  audioCodec: string | null;
 }
 
 export async function probe(inputPath: string): Promise<ProbeResult> {
@@ -63,15 +75,81 @@ export async function probe(inputPath: string): Promise<ProbeResult> {
     inputPath,
   ]);
   const json = JSON.parse(stdout);
-  const audio = (json.streams ?? []).find(
-    (s: { codec_type?: string }) => s.codec_type === "audio",
+  const streams: ProbeStream[] = json.streams ?? [];
+  const audio = streams.find((s) => s.codec_type === "audio");
+  // Ignore "video" streams that are really attached cover art (e.g. mp3 art).
+  const video = streams.find(
+    (s) => s.codec_type === "video" && s.disposition?.attached_pic !== 1,
   );
   const duration = parseFloat(json.format?.duration);
   return {
     durationSeconds: Number.isFinite(duration) ? duration : null,
     sampleRate: audio?.sample_rate ? Number(audio.sample_rate) : null,
     channels: audio?.channels ? Number(audio.channels) : null,
+    hasVideo: Boolean(video),
+    videoCodec: video?.codec_name ?? null,
+    audioCodec: audio?.codec_name ?? null,
   };
+}
+
+/**
+ * Produce a web-playable MP4 from a video upload. If the source is already
+ * H.264 video + AAC audio we just remux to a faststart MP4 (fast, no re-encode);
+ * otherwise we transcode to H.264/AAC, capped at 1280px wide.
+ */
+export async function transcodeToVideo(
+  inputPath: string,
+  outputPath: string,
+  codecs: { videoCodec: string | null; audioCodec: string | null },
+) {
+  const canRemux =
+    codecs.videoCodec === "h264" &&
+    (codecs.audioCodec === "aac" || codecs.audioCodec === null);
+
+  const args = canRemux
+    ? [
+        "-y",
+        "-i",
+        inputPath,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0?",
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        outputPath,
+      ]
+    : [
+        "-y",
+        "-i",
+        inputPath,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
+        "-vf",
+        // Downscale to <=1280px wide, keep aspect, even height. Comma escaped.
+        "scale=min(1280\\,iw):-2",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        "-movflags",
+        "+faststart",
+        outputPath,
+      ];
+
+  await run("ffmpeg", args);
 }
 
 /** Transcode to AAC in an MP4 container with the moov atom up front (seekable). */

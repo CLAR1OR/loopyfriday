@@ -1,10 +1,4 @@
-/**
- * Range-aware audio streaming for the transcoded recording. Auth-checked per
- * request; the heavy lifting lives in serveRangeFromStorage.
- *
- * Behind a reverse proxy this can later be offloaded via X-Accel-Redirect; the
- * direct path here works everywhere and is correct on its own.
- */
+/** Range-aware video streaming for recordings that have a video derivative. */
 import { getCurrentUser } from "@/server/auth/session";
 import { serveRangeFromStorage } from "@/server/http/range";
 import { getRecordingForUser } from "@/server/recordings";
@@ -28,7 +22,7 @@ async function serve(req: Request, ctx: Ctx) {
   const { recordingId } = await ctx.params;
   const rec = await getRecordingForUser(recordingId, user.id);
   if (!rec) return new Response("Not found", { status: 404 });
-  if (!rec.streamKey) return new Response("Stream not ready", { status: 409 });
+  if (!rec.videoKey) return new Response("No video", { status: 404 });
 
-  return serveRangeFromStorage(req, rec.streamKey, "audio/mp4");
+  return serveRangeFromStorage(req, rec.videoKey, "video/mp4");
 }
