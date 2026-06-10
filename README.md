@@ -47,7 +47,13 @@ To seed the initial admin once the stack is up:
 docker compose run --rm app seed
 ```
 
-The app is served on `http://localhost:3000` (override with `APP_PORT`).
+The compose file publishes **no host port** — the `app` container joins the
+external `web` network and the reverse proxy reaches it by name
+(`http://loopyfriday:3000`). Create the shared network once with
+`docker network create web` if it doesn't exist. Set `BETTER_AUTH_URL` (and
+`NEXT_PUBLIC_APP_URL`) in `.env` to the public HTTPS URL, e.g.
+`https://loopyfriday.pingu.productions`. For a quick local look without a proxy,
+run `npm run dev` instead.
 
 ## Operations
 

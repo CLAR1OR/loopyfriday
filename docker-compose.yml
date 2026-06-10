@@ -1,6 +1,19 @@
+# Produktions-Compose: app + worker + postgres.
+#
+# Nur `app` hängt am externen Docker-Netz `web`, über das der nginx-proxy-manager
+# (TLS-Terminierung) es per Namen erreicht:
+#   Proxy-Host loopyfriday.pingu.productions  ->  http://loopyfriday:3000
+#
+# `postgres` und `worker` bleiben im internen Netz `internal` und sind von außen
+# nicht erreichbar. Es wird bewusst KEIN Host-Port veröffentlicht.
+#
+# Wichtig: In .env muss BETTER_AUTH_URL (und NEXT_PUBLIC_APP_URL) auf
+# https://loopyfriday.pingu.productions zeigen — sonst stimmen Cookies,
+# Invite-Links und der CSRF-Origin-Check nicht.
 services:
   postgres:
     image: postgres:17-alpine
+    container_name: loopyfriday-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-loopy}
@@ -8,6 +21,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-loopyfriday}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loopy} -d ${POSTGRES_DB:-loopyfriday}"]
@@ -17,6 +32,7 @@ services:
 
   app:
     build: .
+    container_name: loopyfriday
     restart: unless-stopped
     depends_on:
       postgres:
@@ -24,17 +40,22 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-loopy}:${POSTGRES_PASSWORD:-loopy}@postgres:5432/${POSTGRES_DB:-loopyfriday}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://loopyfriday.pingu.productions}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://loopyfriday.pingu.productions}
       DATA_DIR: /data/files
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-2147483648}
       # Used only by the one-off `seed` role (entrypoint); harmless otherwise.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
     volumes:
       - files:/data/files
-    ports:
-      - "${APP_PORT:-3000}:3000"
+    # No host port — the reverse proxy reaches the container by name on `web`.
+    expose:
+      - "3000"
+    networks:
+      - internal
+      - web
     healthcheck:
       test:
         [
@@ -48,6 +69,7 @@ services:
 
   worker:
     build: .
+    container_name: loopyfriday-worker
     restart: unless-stopped
     command: ["worker"]
     depends_on:
@@ -56,12 +78,22 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-loopy}:${POSTGRES_PASSWORD:-loopy}@postgres:5432/${POSTGRES_DB:-loopyfriday}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://loopyfriday.pingu.productions}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://loopyfriday.pingu.productions}
       DATA_DIR: /data/files
     volumes:
       - files:/data/files
+    networks:
+      - internal
 
 volumes:
   pgdata:
   files:
+
+networks:
+  # Geteiltes Proxy-Netz (vom nginx-proxy-manager genutzt); muss bereits
+  # existieren:  docker network create web
+  web:
+    external: true
+  # Privates Netz für app <-> postgres <-> worker.
+  internal:
