@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Comments } from "@/components/comments/comments";
 import { ProcessingPoller } from "@/components/recordings/processing-poller";
+import { RecordingEditor } from "@/components/recordings/recording-editor";
 import { RecordingPlayer } from "@/components/recordings/recording-player";
 import { RetryButton } from "@/components/recordings/retry-button";
 import { requireUser } from "@/server/auth/session";
@@ -34,7 +35,11 @@ export default async function RecordingPage({
         >
           ← Sessions
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{rec.title}</h1>
+        <RecordingEditor
+          recordingId={rec.id}
+          initialTitle={rec.title}
+          initialDate={rec.recordedOn}
+        />
       </div>
 
       {ready ? (
@@ -63,6 +68,11 @@ export default async function RecordingPage({
             ) : null}
           </div>
           <RetryButton recordingId={rec.id} />
+        </div>
+      ) : rec.status === "ready" ? (
+        <div className="rounded-md border p-4 text-sm text-muted-foreground">
+          The media for this recording was deleted to free space. Its sections
+          and comments are kept.
         </div>
       ) : (
         <div className="rounded-md border p-4 text-sm text-muted-foreground">

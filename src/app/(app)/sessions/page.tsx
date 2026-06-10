@@ -9,7 +9,7 @@ import {
 import { UploadRecording } from "@/components/recordings/upload-recording";
 import { requireUser } from "@/server/auth/session";
 import { getOrCreateDefaultProject } from "@/server/projects";
-import { listRecordings } from "@/server/recordings";
+import { getRecordingCounts, listRecordings } from "@/server/recordings";
 import type { RecordingStatus } from "@/server/db/schema";
 
 export const metadata = { title: "Jam Sessions · LoopyFriday" };
@@ -53,6 +53,7 @@ export default async function SessionsPage() {
   await requireUser();
   const project = await getOrCreateDefaultProject();
   const recordings = await listRecordings(project.id);
+  const counts = await getRecordingCounts(recordings.map((r) => r.id));
 
   // Group recordings by their date (newest day first; already created-desc).
   const order: string[] = [];
@@ -109,17 +110,30 @@ export default async function SessionsPage() {
                     </span>
                   </summary>
                   <ul className="divide-y border-t">
-                    {items.map((rec) => (
-                      <li key={rec.id}>
-                        <Link
-                          href={`/recordings/${rec.id}`}
-                          className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
-                        >
-                          <span>{rec.title}</span>
-                          <StatusBadge status={rec.status} />
-                        </Link>
-                      </li>
-                    ))}
+                    {items.map((rec) => {
+                      const c = counts.get(rec.id) ?? {
+                        sections: 0,
+                        comments: 0,
+                      };
+                      return (
+                        <li key={rec.id}>
+                          <Link
+                            href={`/recordings/${rec.id}`}
+                            className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                          >
+                            <span className="min-w-0 truncate">{rec.title}</span>
+                            <span className="flex shrink-0 items-center gap-3">
+                              <span className="hidden text-xs text-muted-foreground sm:inline">
+                                {c.sections} section{c.sections === 1 ? "" : "s"}{" "}
+                                · {c.comments} comment
+                                {c.comments === 1 ? "" : "s"}
+                              </span>
+                              <StatusBadge status={rec.status} />
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </details>
               );

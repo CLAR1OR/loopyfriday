@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { desc } from "drizzle-orm";
 import {
   Card,
@@ -30,6 +31,9 @@ export default async function AdminPage() {
           Manage accounts. Open signup is disabled — people join by invite or
           by an account you create.
         </p>
+        <Link href="/admin/storage" className="text-sm underline">
+          Manage storage →
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

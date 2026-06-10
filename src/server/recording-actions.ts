@@ -5,8 +5,12 @@ import { getCurrentUser } from "@/server/auth/session";
 import { enqueueProcessRecording } from "@/server/queue";
 import {
   createRecording,
+  deleteRecordingMedia,
+  deleteRecordingVideo,
+  getRecording,
   getRecordingForUser,
   resetRecordingForReprocess,
+  updateRecordingMeta,
 } from "@/server/recordings";
 import { addProjectMember, getOrCreateDefaultProject } from "@/server/projects";
 
@@ -56,5 +60,55 @@ export async function retryRecordingAction(input: {
   await resetRecordingForReprocess(rec.id);
   await enqueueProcessRecording(rec.id);
   revalidatePath(`/recordings/${rec.id}`);
+  return { ok: true };
+}
+
+/** Edit a recording's name and/or date (any member). */
+export async function updateRecordingAction(input: {
+  recordingId: string;
+  title?: string;
+  recordedOn?: string;
+}): Promise<{ ok: true }> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  const rec = await getRecordingForUser(input.recordingId, user.id);
+  if (!rec) throw new Error("Forbidden");
+
+  await updateRecordingMeta(input.recordingId, {
+    title: input.title,
+    recordedOn: input.recordedOn,
+  });
+  revalidatePath(`/recordings/${input.recordingId}`);
+  revalidatePath("/sessions");
+  return { ok: true };
+}
+
+async function assertAdmin(recordingId: string) {
+  const user = await getCurrentUser();
+  if (user?.role !== "admin") throw new Error("Forbidden");
+  const rec = await getRecording(recordingId);
+  if (!rec) throw new Error("Not found");
+  return rec;
+}
+
+/** Admin: free video space (keeps the audio + waveform). */
+export async function deleteRecordingVideoAction(input: {
+  recordingId: string;
+}): Promise<{ ok: true }> {
+  await assertAdmin(input.recordingId);
+  await deleteRecordingVideo(input.recordingId);
+  revalidatePath("/admin/storage");
+  revalidatePath(`/recordings/${input.recordingId}`);
+  return { ok: true };
+}
+
+/** Admin: free all media for a recording (keeps tags/comments). */
+export async function deleteRecordingMediaAction(input: {
+  recordingId: string;
+}): Promise<{ ok: true }> {
+  await assertAdmin(input.recordingId);
+  await deleteRecordingMedia(input.recordingId);
+  revalidatePath("/admin/storage");
+  revalidatePath(`/recordings/${input.recordingId}`);
   return { ok: true };
 }
