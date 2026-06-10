@@ -15,6 +15,13 @@
       "when": 1781086749267,
       "tag": "0001_mushy_trauma",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781087835894,
+      "tag": "0002_material_xorn",
+      "breakpoints": true
     }
   ]
 }

@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/card";
 import { Comments } from "@/components/comments/comments";
 import { Scores } from "@/components/scores/scores";
+import { SongAudios } from "@/components/songs/song-audios";
 import { SongWorkspace } from "@/components/songs/song-workspace";
 import { requireUser } from "@/server/auth/session";
+import { listRecordings } from "@/server/recordings";
 import { getSongDetail, getSongForUser } from "@/server/songs";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +39,10 @@ export default async function SongPage({
   const detail = await getSongDetail(id);
   if (!detail) notFound();
 
+  const candidates = (await listRecordings(detail.song.projectId))
+    .filter((r) => r.status === "ready")
+    .map((r) => ({ id: r.id, title: r.title }));
+
   return (
     <div className="space-y-6">
       <Link
@@ -62,6 +68,19 @@ export default async function SongPage({
           when: formatWhen(v.createdAt),
         }))}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Audio</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SongAudios
+            songId={detail.song.id}
+            initialAudios={detail.audios}
+            candidates={candidates}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

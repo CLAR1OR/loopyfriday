@@ -36,10 +36,36 @@ function StatusBadge({ status }: { status: RecordingStatus }) {
   );
 }
 
+function dayKey(rec: { recordedOn: string | null; createdAt: Date }) {
+  return rec.recordedOn ?? rec.createdAt.toISOString().slice(0, 10);
+}
+
+function formatDay(day: string) {
+  return new Date(`${day}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default async function SessionsPage() {
   await requireUser();
   const project = await getOrCreateDefaultProject();
   const recordings = await listRecordings(project.id);
+
+  // Group recordings by their date (newest day first; already created-desc).
+  const order: string[] = [];
+  const byDay = new Map<string, typeof recordings>();
+  for (const rec of recordings) {
+    const k = dayKey(rec);
+    if (!byDay.has(k)) {
+      byDay.set(k, []);
+      order.push(k);
+    }
+    byDay.get(k)!.push(rec);
+  }
+  order.sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="space-y-8">
@@ -71,19 +97,34 @@ export default async function SessionsPage() {
             No recordings yet — upload your first jam above.
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
-            {recordings.map((rec) => (
-              <li key={rec.id}>
-                <Link
-                  href={`/recordings/${rec.id}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
-                >
-                  <span className="font-medium">{rec.title}</span>
-                  <StatusBadge status={rec.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-2">
+            {order.map((day) => {
+              const items = byDay.get(day)!;
+              return (
+                <details key={day} open className="rounded-md border">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 font-medium select-none">
+                    <span>{formatDay(day)}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {items.length} recording{items.length === 1 ? "" : "s"}
+                    </span>
+                  </summary>
+                  <ul className="divide-y border-t">
+                    {items.map((rec) => (
+                      <li key={rec.id}>
+                        <Link
+                          href={`/recordings/${rec.id}`}
+                          className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                        >
+                          <span>{rec.title}</span>
+                          <StatusBadge status={rec.status} />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

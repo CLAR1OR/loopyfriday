@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   attachments,
   lyricVersions,
   recordings,
   sections,
+  songAudios,
   songs,
   user,
 } from "@/server/db/schema";
@@ -63,6 +64,13 @@ export async function promoteSection(sectionId: string, userId: string) {
       .set({ currentLyricVersionId: version.id })
       .where(eq(songs.id, song.id));
 
+    // Seed the first associated audio (the take it was promoted from).
+    await tx.insert(songAudios).values({
+      songId: song.id,
+      recordingId: recording.id,
+      title: "ver1",
+    });
+
     // Carry over any files attached to the section (scores, etc.).
     const sectionAttachments = await tx.query.attachments.findMany({
       where: and(
@@ -114,11 +122,81 @@ export interface VersionSummary {
   isCurrent: boolean;
 }
 
+export interface SongAudio {
+  id: string;
+  recordingId: string;
+  title: string;
+  recordingTitle: string;
+  status: string;
+  playable: boolean;
+}
+
+/** Audios associated with a song, with the underlying recording info. */
+export async function listSongAudios(songId: string): Promise<SongAudio[]> {
+  const rows = await db
+    .select({
+      id: songAudios.id,
+      recordingId: songAudios.recordingId,
+      title: songAudios.title,
+      sortOrder: songAudios.sortOrder,
+      createdAt: songAudios.createdAt,
+      recordingTitle: recordings.title,
+      status: recordings.status,
+      streamKey: recordings.streamKey,
+    })
+    .from(songAudios)
+    .innerJoin(recordings, eq(songAudios.recordingId, recordings.id))
+    .where(eq(songAudios.songId, songId))
+    .orderBy(asc(songAudios.sortOrder), asc(songAudios.createdAt));
+
+  return rows.map((r) => ({
+    id: r.id,
+    recordingId: r.recordingId,
+    title: r.title,
+    recordingTitle: r.recordingTitle,
+    status: r.status,
+    playable: r.status === "ready" && Boolean(r.streamKey),
+  }));
+}
+
+export async function getSongAudio(songAudioId: string) {
+  return db.query.songAudios.findFirst({
+    where: eq(songAudios.id, songAudioId),
+  });
+}
+
+export async function addSongAudio(opts: {
+  songId: string;
+  recordingId: string;
+  title: string;
+}) {
+  await db
+    .insert(songAudios)
+    .values({
+      songId: opts.songId,
+      recordingId: opts.recordingId,
+      title: opts.title,
+    })
+    .onConflictDoNothing();
+}
+
+export async function updateSongAudioTitle(songAudioId: string, title: string) {
+  await db
+    .update(songAudios)
+    .set({ title })
+    .where(eq(songAudios.id, songAudioId));
+}
+
+export async function removeSongAudio(songAudioId: string) {
+  await db.delete(songAudios).where(eq(songAudios.id, songAudioId));
+}
+
 export interface SongDetail {
   song: Song;
   currentContent: string;
   versions: VersionSummary[];
   originRecording: { id: string; title: string; status: string } | null;
+  audios: SongAudio[];
 }
 
 /** Full song view: current lyrics, version history, and the origin recording. */
@@ -164,6 +242,7 @@ export async function getSongDetail(songId: string): Promise<SongDetail | null> 
       isCurrent: v.id === (current?.id ?? null),
     })),
     originRecording,
+    audios: await listSongAudios(songId),
   };
 }
 

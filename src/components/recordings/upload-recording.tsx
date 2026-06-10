@@ -21,6 +21,10 @@ export function UploadRecording() {
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
+  // Default to today; computed once on the client.
+  const [recordedOn, setRecordedOn] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const uploadRef = useRef<tus.Upload | null>(null);
 
   const busy = phase === "preparing" || phase === "uploading";
@@ -34,6 +38,7 @@ export function UploadRecording() {
     try {
       ({ recordingId } = await createRecordingAction({
         title: title || file.name,
+        recordedOn,
       }));
     } catch {
       setPhase("error");
@@ -82,6 +87,18 @@ export function UploadRecording() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Friday jam — take 2"
           disabled={busy}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="rec-date">Date</Label>
+        <Input
+          id="rec-date"
+          type="date"
+          value={recordedOn}
+          onChange={(e) => setRecordedOn(e.target.value)}
+          disabled={busy}
+          suppressHydrationWarning
+          className="w-auto"
         />
       </div>
       <div className="space-y-2">

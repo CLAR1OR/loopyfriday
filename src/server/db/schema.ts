@@ -14,6 +14,7 @@
 import { nanoid } from "nanoid";
 import {
   boolean,
+  date,
   index,
   integer,
   pgTable,
@@ -208,6 +209,8 @@ export const recordings = pgTable(
       onDelete: "set null",
     }),
     title: text("title").notNull(),
+    // Calendar day the jam happened (chosen at upload); used to group sessions.
+    recordedOn: date("recorded_on"),
     originalFilename: text("original_filename"),
     // storage keys (relative paths within DATA_DIR)
     storageKey: text("storage_key"), // original upload
@@ -298,6 +301,31 @@ export const lyricVersions = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("lyric_versions_song_idx").on(t.songId, t.createdAt)],
+);
+
+/**
+ * Audio takes associated with a song (e.g. "ver1", "ver2"). Each points at a
+ * recording and carries its own title. The promoted-from recording is seeded as
+ * the first one.
+ */
+export const songAudios = pgTable(
+  "song_audios",
+  {
+    id: id(),
+    songId: text("song_id")
+      .notNull()
+      .references(() => songs.id, { onDelete: "cascade" }),
+    recordingId: text("recording_id")
+      .notNull()
+      .references(() => recordings.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("Untitled"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("song_audios_unique").on(t.songId, t.recordingId),
+    index("song_audios_song_idx").on(t.songId),
+  ],
 );
 
 /* ------------------------------------------------------------------ */

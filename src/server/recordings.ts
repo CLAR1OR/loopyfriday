@@ -21,6 +21,7 @@ export async function createRecording(opts: {
   projectId: string;
   uploadedBy: string;
   title: string;
+  recordedOn?: string | null;
   jamSessionId?: string | null;
 }) {
   const [rec] = await db
@@ -29,6 +30,7 @@ export async function createRecording(opts: {
       projectId: opts.projectId,
       uploadedBy: opts.uploadedBy,
       title: opts.title,
+      recordedOn: opts.recordedOn ?? null,
       jamSessionId: opts.jamSessionId ?? null,
       status: "uploaded",
     })

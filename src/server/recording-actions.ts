@@ -14,8 +14,11 @@ import { addProjectMember, getOrCreateDefaultProject } from "@/server/projects";
  * Create the recording row before the upload starts, so the client has an id to
  * attach as tus metadata and to navigate to. Returns the new recording id.
  */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function createRecordingAction(input: {
   title?: string;
+  recordedOn?: string;
 }): Promise<{ recordingId: string }> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -25,10 +28,16 @@ export async function createRecordingAction(input: {
   await addProjectMember(project.id, user.id, "member");
 
   const title = input.title?.trim() || "Untitled recording";
+  const recordedOn =
+    input.recordedOn && DATE_RE.test(input.recordedOn)
+      ? input.recordedOn
+      : new Date().toISOString().slice(0, 10);
+
   const rec = await createRecording({
     projectId: project.id,
     uploadedBy: user.id,
     title,
+    recordedOn,
   });
   return { recordingId: rec.id };
 }

@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/server/auth/session";
+import { getRecordingForUser } from "@/server/recordings";
 import {
   addLyricVersion,
+  addSongAudio,
   getLyricVersion,
+  getSongAudio,
   getSongForUser,
+  listSongAudios,
   promoteSection,
+  removeSongAudio,
   updateSong,
+  updateSongAudioTitle,
+  type SongAudio,
 } from "@/server/songs";
 
 async function requireUserId() {
@@ -84,5 +91,58 @@ export async function updateSongAction(input: {
 
   revalidatePath(`/songs/${input.songId}`);
   revalidatePath("/songs");
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------- */
+/* Song audios (titled takes, e.g. ver1 / ver2)                      */
+/* ---------------------------------------------------------------- */
+
+export async function addSongAudioAction(input: {
+  songId: string;
+  recordingId: string;
+  title?: string;
+}): Promise<SongAudio[]> {
+  const userId = await requireUserId();
+  const song = await getSongForUser(input.songId, userId);
+  if (!song) throw new Error("Forbidden");
+  const rec = await getRecordingForUser(input.recordingId, userId);
+  if (!rec || rec.projectId !== song.projectId) throw new Error("Forbidden");
+
+  await addSongAudio({
+    songId: input.songId,
+    recordingId: input.recordingId,
+    title: input.title?.trim() || rec.title,
+  });
+  revalidatePath(`/songs/${input.songId}`);
+  return listSongAudios(input.songId);
+}
+
+async function songAudioAccess(songAudioId: string, userId: string) {
+  const audio = await getSongAudio(songAudioId);
+  if (!audio) throw new Error("Not found");
+  const song = await getSongForUser(audio.songId, userId);
+  if (!song) throw new Error("Forbidden");
+  return audio.songId;
+}
+
+export async function renameSongAudioAction(input: {
+  songAudioId: string;
+  title: string;
+}): Promise<{ ok: true }> {
+  const userId = await requireUserId();
+  const songId = await songAudioAccess(input.songAudioId, userId);
+  await updateSongAudioTitle(input.songAudioId, input.title.trim() || "Untitled");
+  revalidatePath(`/songs/${songId}`);
+  return { ok: true };
+}
+
+export async function removeSongAudioAction(input: {
+  songAudioId: string;
+}): Promise<{ ok: true }> {
+  const userId = await requireUserId();
+  const songId = await songAudioAccess(input.songAudioId, userId);
+  await removeSongAudio(input.songAudioId);
+  revalidatePath(`/songs/${songId}`);
   return { ok: true };
 }
