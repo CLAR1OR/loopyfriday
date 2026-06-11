@@ -192,6 +192,7 @@ export interface RecordingStorage {
   title: string;
   status: RecordingStatus;
   hasVideo: boolean;
+  hasOriginal: boolean;
   hasMedia: boolean;
   video: number;
   audio: number;
@@ -218,6 +219,7 @@ export async function getRecordingsStorage(
       title: r.title,
       status: r.status,
       hasVideo: Boolean(r.videoKey),
+      hasOriginal: Boolean(r.storageKey),
       hasMedia: Boolean(r.videoKey || r.streamKey || r.storageKey || r.peaksPath),
       video,
       audio,
@@ -227,6 +229,18 @@ export async function getRecordingsStorage(
     });
   }
   return out;
+}
+
+/** Free the raw upload only, keeping the playable video derivative + audio.
+ * The recording can no longer be reprocessed afterwards. */
+export async function deleteRecordingOriginal(recordingId: string) {
+  const rec = await getRecording(recordingId);
+  if (!rec || !rec.storageKey) return;
+  await storage.remove(rec.storageKey).catch(() => {});
+  await db
+    .update(recordings)
+    .set({ storageKey: null })
+    .where(eq(recordings.id, recordingId));
 }
 
 /** Free video space: remove the video derivative + the (video) original; keep

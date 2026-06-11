@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   deleteRecordingMediaAction,
+  deleteRecordingOriginalAction,
   deleteRecordingVideoAction,
 } from "@/server/recording-actions";
 import type { RecordingStorage } from "@/server/recordings";
@@ -23,6 +24,28 @@ export function StorageManager({ initial }: { initial: RecordingStorage[] }) {
   const videoTotal = items.reduce((s, r) => s + r.video, 0);
   const grandTotal = items.reduce((s, r) => s + r.total, 0);
 
+  async function delOriginal(id: string) {
+    if (!confirm("Delete the original upload? The video and audio stay playable, but the recording can no longer be reprocessed.")) return;
+    setBusy(id);
+    try {
+      await deleteRecordingOriginalAction({ recordingId: id });
+      setItems((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                original: 0,
+                hasOriginal: false,
+                total: r.video + r.audio + r.peaks,
+              }
+            : r,
+        ),
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function delVideo(id: string) {
     if (!confirm("Delete the video to free space? The audio and waveform stay.")) return;
     setBusy(id);
@@ -36,6 +59,7 @@ export function StorageManager({ initial }: { initial: RecordingStorage[] }) {
                 video: 0,
                 original: 0,
                 hasVideo: false,
+                hasOriginal: false,
                 total: r.audio + r.peaks,
               }
             : r,
@@ -63,6 +87,7 @@ export function StorageManager({ initial }: { initial: RecordingStorage[] }) {
                 peaks: 0,
                 total: 0,
                 hasVideo: false,
+                hasOriginal: false,
                 hasMedia: false,
               }
             : r,
@@ -108,7 +133,17 @@ export function StorageManager({ initial }: { initial: RecordingStorage[] }) {
                   {r.original ? ` · original ${fmt(r.original)}` : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {r.hasOriginal ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy === r.id}
+                    onClick={() => delOriginal(r.id)}
+                  >
+                    Delete original
+                  </Button>
+                ) : null}
                 {r.hasVideo ? (
                   <Button
                     size="sm"

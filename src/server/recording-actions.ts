@@ -6,6 +6,7 @@ import { enqueueProcessRecording } from "@/server/queue";
 import {
   createRecording,
   deleteRecordingMedia,
+  deleteRecordingOriginal,
   deleteRecordingVideo,
   getRecording,
   getRecordingForUser,
@@ -89,6 +90,17 @@ async function assertAdmin(recordingId: string) {
   const rec = await getRecording(recordingId);
   if (!rec) throw new Error("Not found");
   return rec;
+}
+
+/** Admin: free the raw upload only (keeps video + audio playable). */
+export async function deleteRecordingOriginalAction(input: {
+  recordingId: string;
+}): Promise<{ ok: true }> {
+  await assertAdmin(input.recordingId);
+  await deleteRecordingOriginal(input.recordingId);
+  revalidatePath("/admin/storage");
+  revalidatePath(`/recordings/${input.recordingId}`);
+  return { ok: true };
 }
 
 /** Admin: free video space (keeps the audio + waveform). */
